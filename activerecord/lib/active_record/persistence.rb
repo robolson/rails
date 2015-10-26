@@ -464,14 +464,21 @@ module ActiveRecord
 
         attributes.each do |column|
           column = column.to_s
-          changes[column] = write_attribute(column, current_time)
+          # to_i the Time objects to drop milliseconds from the comparison
+          if @attributes[column].value_before_type_cast.to_i != current_time.to_i
+            changes[column] = write_attribute(column, current_time)
+          end
         end
 
         changes[self.class.locking_column] = increment_lock if locking_enabled?
 
         clear_attribute_changes(changes.keys)
         primary_key = self.class.primary_key
-        self.class.unscoped.where(primary_key => self[primary_key]).update_all(changes) == 1
+        if changes.empty?
+          true
+        else
+          self.class.unscoped.where(primary_key => self[primary_key]).update_all(changes) == 1
+        end
       else
         true
       end
